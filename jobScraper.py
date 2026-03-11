@@ -16,31 +16,6 @@ def scroll_page(page: Page):
         page.mouse.wheel(0, 10000)
         page.wait_for_timeout(3500)
 
-def ihire_scraping(keyword, no_of_pages):
-    results = []
-    # base_url = f"https://www.ihire.com/candidate/jobs/search?loc=Dallas,%20TX&d=100&k=#/search?loc=&d=0&k=data+engineer&rem=false&hyb=false&inp=false&st=aggregation&ages=1&empltype=1|2|3|4"
-    base_url = f"https://www.ihire.com/search#/search?k={keyword.replace(' ', '+')}&loc=USA&d=50&rem=false&hyb=false&inp=false&o=14&st=page&ctc=17&ages=1&p="
-
-    # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-    driver = uc.Chrome(version_main=145)
-    driver.implicitly_wait(5)
-
-    driver.get("https://www.ihire.com")
-
-    with open(r"D:\Crawling\Geta Pro\LocalCh\cookies-ihire.pkl", "rb") as cookie:
-        cookies = pickle.load(cookie)
-
-    for c in cookies:
-        driver.add_cookie(c)
-
-    driver.get(base_url)
-    driver.refresh()
-    time.sleep(5)
-    links = driver.find_elements(By.XPATH, '//a[@data-ref="anonymous-search-jobs-itemclick"]')
-    driver.implicitly_wait(15)
-    for l in links:
-        results.append(l)
-    return results
 
 def dice_scraping(keyword, no_of_pages):
     results = []
@@ -51,21 +26,45 @@ def dice_scraping(keyword, no_of_pages):
             results.append(d)
     return results
 
-def jobright_Scraping(keyword, no_of_pages):
-    results = []
-    page = StealthyFetcher.fetch('https://jobright.ai/jobs/search?value=Data+Engineer&searchType=job_title&country=US&jobTaxonomyList=%5B%7B%22taxonomyId%22%3A%2200-00-00%22%2C%22title%22%3A%22Data+Engineer%22%7D%5D&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=true&refresh=false&position=19&sortCondition=0&jobTypes=1%2C3%2C2&workModel=2&daysAgo=1', page_action=scroll_page, headless=False)
-    data = page.xpath('//a[@data-tut="jobs-card-match-score"]/@href').getall()
-    return data
+def jobright_Scraping(main_url):
+    results = set()
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        context = browser.new_context()
+        page = context.new_page()
+        page.goto(main_url, wait_until="domcontentloaded")
+        time.sleep(3)
+        scroll_box = page.locator('//div[@id="scrollableDiv"]').first
+        for _ in range(40):
+            links = page.locator('a[class*="job-card"]')
+            for l in links.all():
+                href = "https://jobright.ai" + l.get_attribute("href")
+                if href:
+                    results.add(href)
+            scroll_box.evaluate("el => el.scrollBy(0, 2000)")
+            time.sleep(1.5)
+        return list(results)
+
 
 
 
 def built_in_scraping(keyword, no_of_pages):
-    results = []
-    for i in range(1, no_of_pages+1):
-        page = StealthyFetcher.fetch(f"https://builtin.com/jobs/hybrid?search={keyword.replace(' ', '%20')}&country=USA&allLocations=true&page={i}")
-        data = page.xpath('//a[@data-id="job-card-title"]/@href').getall()
-        for d in data:
-            results.append("https://builtin.com" + d)
-    return results
+    extension_path = r"C:\Users\anwaa\Downloads\Urban VPN"
+    base_url = f"https://builtin.com/jobs/remote?search={keyword.replace(' ', '%20')}&daysSinceUpdated=1&country=USA&allLocations=true"
+    browser = sync_playwright().start()
+    context = browser.chromium.launch_persistent_context(user_data_dir="./user-data-dir", headless=False, args=[f"--disable-extensions-except={extension_path}", f"--load-extension={extension_path}"])
+    page = context.pages[0] if context.pages else context.new_page()
+    page.goto("https://www.google.com")
+    input("Enter to Exit....")
+     
+    # results = []
+    # for i in range(1, no_of_pages+1):
+    #     page = StealthyFetcher.fetch(base_url + f"&page={i}", headless=False, disable_resources=True)
+    #     data = page.xpath('//a[@data-id="job-card-title"]/@href').getall()
+    #     for d in data:
+    #         results.append("https://builtin.com" + d)
+    # return results
 
-print(len(jobright_Scraping("Data Engineer", 2)))
+# print(jobright_Scraping(main_url="https://jobright.ai/jobs/search?value=Data+Engineer&searchType=job_title&country=US&jobTaxonomyList=%5B%7B%22taxonomyId%22%3A%2200-00-00%22%2C%22title%22%3A%22Data+Engineer%22%7D%5D&isH1BOnly=false&excludeStaffingAgency=false&excludeSecurityClearance=false&excludeUsCitizen=true&refresh=false&position=19&sortCondition=0&jobTypes=1%2C3%2C2&workModel=2&daysAgo=1"))
+
+print(built_in_scraping("AI Engineer", 5))
